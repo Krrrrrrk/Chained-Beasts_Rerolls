@@ -5,7 +5,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$version = '0.1.0'
+$version = '0.1.1'
 $nativeHash = 'ba3ef02fa87da4c41bb27d7610539c9578132204f0fb5713833e2ef93415ce29'
 $names = @('ChainedBeasts.Rerolls.dll','ChainedBeasts.Rerolls.Core.dll')
 $output = Join-Path $repoRoot 'src\ChainedBeasts.Rerolls\bin\Release\net6.0'
@@ -62,11 +62,11 @@ if ($Package) {
     foreach ($file in $names) {Copy-Item -LiteralPath (Join-Path $output $file) -Destination $plugins}
     foreach ($file in @('README.md','LICENSE','THIRD_PARTY_NOTICES.md')) {Copy-Item -LiteralPath (Join-Path $repoRoot $file) -Destination $stage}
     $files | ForEach-Object {"$($_.sha256)  BepInEx/plugins/ChainedBeasts.Rerolls/$($_.file)"} | Set-Content -LiteralPath (Join-Path $stage 'SHA256SUMS.txt') -Encoding utf8
-    [ordered]@{version=$version;game='1.0.2';steamBuild='26231777';nativeSha256=$nativeHash;runtimeVerified=$false;files=$files} |
+    [ordered]@{version=$version;game='1.0.2';steamBuild='26231777';nativeSha256=$nativeHash;runtimeVerified=$false;singlePlayerManualTested=($version -eq '0.1.1');multiplayerRuntimeTested=$false;files=$files} |
         ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $stage 'BUILD_INFO.json') -Encoding utf8
     $temporary=Join-Path $artifact ([Guid]::NewGuid().ToString('N')+'.zip');[IO.Compression.ZipFile]::CreateFromDirectory($stage,$temporary)
-    $zip=Join-Path $artifact "ChainedBeasts.Rerolls-$version-preview.zip";Move-Item -LiteralPath $temporary -Destination $zip -Force
-    [ordered]@{version=$version;archive=(Split-Path $zip -Leaf);sha256=(Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant();runtimeVerified=$false;publishedRelease=$false;files=$files} |
+    $zip=Join-Path $artifact "ChainedBeasts.Rerolls-$version.zip";Move-Item -LiteralPath $temporary -Destination $zip -Force
+    [ordered]@{version=$version;archive=(Split-Path $zip -Leaf);sha256=(Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant();runtimeVerified=$false;singlePlayerManualTested=($version -eq '0.1.1');multiplayerRuntimeTested=$false;publishedRelease=$false;files=$files} |
         ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $artifact 'package.json') -Encoding utf8
     Write-Output "Package: $zip"
 }
@@ -81,11 +81,11 @@ if ($Deploy) {
     $others=@(Get-ChildItem -LiteralPath $root -Filter '*.dll' -File -Recurse | Where-Object {-not $_.FullName.StartsWith($target+'\',[StringComparison]::OrdinalIgnoreCase)} |
         ForEach-Object {[ordered]@{path=$_.FullName;sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash}})
     $backup=Join-Path $repoRoot ('backups\deploy-'+(Get-Date -Format 'yyyyMMdd-HHmmss-fff'));New-Item -ItemType Directory -Path $backup | Out-Null
-    if(Test-Path -LiteralPath $target){Copy-Item -LiteralPath $target -Destination $backup -Recurse}
+    if(Test-Path -LiteralPath $target){Copy-Item -LiteralPath $target -Destination (Join-Path $backup 'Plugin') -Recurse}
     $config=Join-Path $GameDir 'BepInEx\config\local.chainedbeasts.rerolls.cfg'
     if(Test-Path -LiteralPath $config){Copy-Item -LiteralPath $config -Destination $backup}
     $ledger=Join-Path $GameDir 'BepInEx\config\ChainedBeasts.Rerolls'
-    if(Test-Path -LiteralPath $ledger){Copy-Item -LiteralPath $ledger -Destination $backup -Recurse}
+    if(Test-Path -LiteralPath $ledger){Copy-Item -LiteralPath $ledger -Destination (Join-Path $backup 'Ledger') -Recurse}
     $data=Join-Path ([Environment]::GetFolderPath('UserProfile')) 'AppData\LocalLow\Featherweight Games\ChainedBeasts'
     if(Test-Path -LiteralPath $data){Copy-Item -LiteralPath $data -Destination (Join-Path $backup 'UserData') -Recurse}
     if(Get-Process -Name ChainedBeasts -ErrorAction SilentlyContinue){throw 'Game started during backup; nothing deployed.'}

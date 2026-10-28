@@ -1,4 +1,4 @@
-# Implementation notes: 0.1.0 preview
+# Implementation notes: 0.1.1 preview
 
 Targets the inspected Chained Beasts 1.0.2 / Steam build 26231777, Unity
 6000.3.21f1, BepInEx 6.0.0-be.791+b782da4 and .NET 6. Startup refuses a different
@@ -14,7 +14,7 @@ and pure managed Core assembly. No original binary or asset is changed.
 | --- | --- |
 | Fresh-run identity | Postfix `RunDataManager.StartNewRunRpc(int seed, int runStartTime, AscensionLevel difficulty, DifficultyConfig difficultyMultipliers, int forceStartingDay)`; verify the manager's seed/start time match the invocation |
 | Damage during a battle | Postfix `Player.OnDamageAccounted(int)` and `Player.OnHealthChanged(int,int)`; host only, positive accounted damage or actual HP loss while the level is RUNNING |
-| Battle completion | Prefix `GameLevel.OnLevelCompleteForPeer()` before native `RunDataManager.OnLevelComplete`; ignore duplicate `hasCompletedLevelForPeer`, tutorial, failures, and already settled levels |
+| Battle completion | Observe replicated `GameLevel.ActiveGameState` from Update and before `RunDataManager.EvaluateBattleEndEquipment()`; use the battle number captured at start and settle once, excluding tutorial/failures |
 | Survivor identity | Current spawned `PlayerManager.players`, `playerData.playerID`, `health.Value > 0`, `!IsDead`; never call the convenience `PlayerData.PlayerObject` getter |
 | Final native damage cross-check | `PlayerData.lastFightDamageTaken` before native battle cleanup |
 | Skills | `SkillGenerator.GenerateTrainingSkills(seed, null)`, replace only `trainingSkills[uiState.trainingLayer]`, invoke `OnTrainingSkillsChanged(layer)` and refresh the normal trainer |
@@ -103,3 +103,30 @@ These checks cannot prove IL2CPP patching/marshalling, native card models and
 animations, actual NGO delivery, every conflict with other mods, native
 controller routes, or save/resume/gameplay correctness. Manual tests in the
 README remain required. The game is never launched by the build script.
+
+
+## 0.1.1: damage-free award lifecycle correction
+
+The 0.1.0 logs showed normal native completed-level progression but no completed
+battles in the reroll ledger. The late private completion hook and its guards
+did not provide a reliable award trigger in gameplay. 0.1.1 no longer depends
+on it. Host Update observes RUNNING -> LEVEL_COMPLETE / DEMO_COMPLETE (win) or
+LEVEL_FAILED, with an additional observation before native battle-end equipment
+evaluation, while survivor/damage data are still available. A complete starting
+roster is required; delayed player registration is retried instead of latching
+an empty roster. Early damage is retained while waiting for registration.
+
+The native level number is captured at battle start, so later native increments
+and `hasCompletedLevelForPeer` cannot skip or double-award the battle. Logs record
+one tracking line and one settlement line per battle, including outcome, live
+HP/survival, damage flags/native counter, award and balance, or the explicit skip
+reason. Existing ledgers remain readable. No missed historical bonus is fabricated
+or inserted into a save. The charge/offer/confirmation protocol is unchanged, but
+all peers still need matching updated binaries for its normal build handshake.
+
+## Reported gameplay status
+
+0.1.1 passed an initial manual single-player test, including the corrected
+damage-free bonus. Multiplayer has not been tested in-game. The inert
+host/client checks establish coordination behavior under the simulated cases;
+they do not establish actual NGO/Steam delivery or multiplayer gameplay success.

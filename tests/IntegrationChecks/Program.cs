@@ -54,9 +54,9 @@ try
     using(var f=new Party(2)) {
         var host=f.Host;host.Activate();host.Service.Damage(host.Players.players[0],4);
         host.Session.Level.ActiveGameState=GameLevel.eGameState.LEVEL_COMPLETE;
-        host.Service.Completed(host.Session.Level);f.Pump();
+        f.Pump();
         Check(host.Service.State.Charges==2,"One undamaged survivor earns one party charge even if another player took damage.");
-        host.Activate();host.Service.Completed(host.Session.Level);f.Pump();
+        host.Activate();f.Pump();
         Check(host.Service.State.Charges==2,"Duplicate end callbacks cannot reward again.");
         host.Vote(0);f.Nodes[1].Vote(1);f.Pump();
         Check(host.Service.State.Charges==1,"A potion/skill/merchant reroll draws from the earned shared balance.");
@@ -65,13 +65,55 @@ try
     }
     using(var f=new Party(1)) {
         f.Host.Activate();f.Host.Service.Damage(f.Host.Players.players[0],1);f.Host.Session.Level.ActiveGameState=GameLevel.eGameState.LEVEL_COMPLETE;
-        f.Host.Service.Completed(f.Host.Session.Level);f.Pump();Check(f.Host.Service.State.Charges==1,"Healing to full after damage does not earn a flawless reward.");
+        f.Pump();Check(f.Host.Service.State.Charges==1,"Healing to full after damage does not earn a flawless reward.");
         f.Host.Vote(0);f.Pump();f.Host.Activate();f.Host.Service.Dispose();f.Host.Service=new();f.Host.Tick();f.Pump();
         Check(f.Host.Service.State.Charges==0,"Resume restores the host ledger instead of gifting a new starting charge.");
     }
     using(var f=new Party(2)) {
         f.Nodes[1].Build="different-build";f.Host.Activate();f.Host.Service.Dispose();f.Host.Service=new();f.Host.Service.Fresh(f.Host.Session.runDataManager,71,12345);f.Pump(100);
         f.Host.Vote(0);f.Nodes[1].Vote(1);f.Pump();Check(f.Host.Applied==0 && f.Host.Service.State.Charges==1,"Mismatched build cannot enter a reroll transaction.");
+    }
+    using(var f=new Party(1)) {
+        f.Host.Session.Level.hasCompletedLevelForPeer=true;
+        f.Host.Session.runDataManager.CompletedLevels=1;
+        f.Host.Session.Level.ActiveGameState=GameLevel.eGameState.LEVEL_COMPLETE;f.Pump();
+        Check(f.Host.Service.State.Charges==2,"Replicated victory awards without the private completion callback, even after native bookkeeping advanced.");
+        f.Pump(60);Check(f.Host.Service.State.Charges==2,"Repeated terminal state polls cannot award again.");
+    }
+    using(var f=new Party(1,emptyStart:true)) {
+        var p=new Player{playerData=f.Host.Session.runDataManager.playerDatas[0],clientID=new(){Value=new(){NetworkID=0,PlayerIndex=0}}};
+        f.Host.Players.players.Add(p);f.Pump();
+        f.Host.Session.Level.ActiveGameState=GameLevel.eGameState.LEVEL_COMPLETE;f.Pump();
+        Check(f.Host.Service.State.Charges==2,"An initially empty PlayerManager does not permanently latch an empty battle roster.");
+    }
+    using(var f=new Party(1,spawnFlagFalse:true)) {
+        f.Host.Session.Level.ActiveGameState=GameLevel.eGameState.LEVEL_COMPLETE;f.Pump();
+        Check(f.Host.Service.State.Charges==2,"Native RUNNING scene state starts tracking even when the separate spawn flag is false.");
+    }
+    using(var f=new Party(1)) {
+        f.Host.Players.players[0].playerData.lastFightDamageTaken=7;
+        f.Host.Session.Level.ActiveGameState=GameLevel.eGameState.LEVEL_COMPLETE;f.Pump();
+        Check(f.Host.Service.State.Charges==1,"Native damage counter prevents a false flawless reward when callbacks were absent and HP was healed.");
+    }
+    using(var f=new Party(2)) {
+        f.Host.Players.players[0].IsDead=true;f.Host.Players.players[0].health.Value=0;
+        f.Host.Players.players[1].playerData.lastFightDamageTaken=1;
+        f.Host.Session.Level.ActiveGameState=GameLevel.eGameState.LEVEL_COMPLETE;f.Pump();
+        Check(f.Host.Service.State.Charges==1,"An undamaged dead character cannot qualify in place of the damaged surviving character.");
+    }
+    using(var f=new Party(1)) {
+        f.Host.Session.Level.ActiveGameState=GameLevel.eGameState.DEMO_COMPLETE;f.Pump();
+        Check(f.Host.Service.State.Charges==2,"Native final-day victory state also earns the flawless bonus.");
+    }
+    using(var f=new Party(1)) {
+        f.Host.Session.Level.ActiveGameState=GameLevel.eGameState.LEVEL_FAILED;f.Pump();
+        Check(f.Host.Service.State.Charges==1,"Polling a failed battle never awards a charge.");
+    }
+    using(var f=new Party(1,emptyStart:true)) {
+        var p=new Player{playerData=f.Host.Session.runDataManager.playerDatas[0],clientID=new(){Value=new(){NetworkID=0,PlayerIndex=0}}};
+        f.Host.Activate();f.Host.Service.Damage(p,1);f.Host.Players.players.Add(p);f.Pump();
+        f.Host.Session.Level.ActiveGameState=GameLevel.eGameState.LEVEL_COMPLETE;f.Pump();
+        Check(f.Host.Service.State.Charges==1,"Damage seen before full roster registration survives delayed battle initialization.");
     }
     Check(!AppDomain.CurrentDomain.GetAssemblies().Any(a=>a.GetName().Name is "Assembly-CSharp" or "Unity.Netcode.Runtime"),"Checks never loaded a game/runtime DLL.");
     Console.WriteLine($"PASS: {checks} production service/transport/store integration checks with inert NGO/Steam/native offers.");
@@ -81,12 +123,12 @@ finally {Bus.RemoveFixture();}
 sealed class Party:IDisposable
 {
     internal List<Node> Nodes=new();internal Node Host=>Nodes[0];
-    internal Party(int count,bool couch=false)
+    internal Party(int count,bool couch=false,bool emptyStart=false,bool spawnFlagFalse=false)
     {
         Bus.Nodes.Clear();Bus.Pending.Clear();Bus.Tags.Clear();Bus.Now=0;Bus.DropFinish=false;
         Bus.Root=Path.Combine(Path.GetTempPath(),"cb-reroll-checks-"+Guid.NewGuid().ToString("N"));
         var seats=Enumerable.Range(0,count).Select(i=>new Seat((ulong)i,i)).ToList();if(couch)seats.Add(new(1,2));
-        for(var i=0;i<count;i++)Nodes.Add(new((ulong)i,seats.ToArray()));Pump(60);
+        for(var i=0;i<count;i++)Nodes.Add(new((ulong)i,seats.ToArray()));if(emptyStart)Host.Players.players.Clear();if(spawnFlagFalse)Host.Session.Level.playersSpawned=false;Pump(60);
     }
     internal void Pump(int frames=20){for(var i=0;i<frames;i++){Bus.Now+=.1;foreach(var node in Nodes)node.Tick();Bus.Deliver();}}
     public void Dispose(){foreach(var node in Nodes){node.Activate();node.Service.Dispose();}Bus.RemoveFixture();}

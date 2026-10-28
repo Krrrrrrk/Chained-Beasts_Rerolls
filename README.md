@@ -2,10 +2,13 @@
 
 I wanted rerolls to be something the party earns and decides on together.
 
-**Experimental 0.1.0 preview for Chained Beasts 1.0.2 / Steam build 26231777.**
-Builds and nongame checks pass. Solo, host/client gameplay, controller confirmations,
-visual layout, and save/resume still need an in-game test. This is a separate mod;
-it doesn't require Foundation, Terms & Contusions, Battle Numbers, or Matchmaking.
+**Version 0.1.1 for Chained Beasts 1.0.2 / Steam build 26231777.**
+Single-player, including the damage-free reroll bonus, is working in my initial
+testing. **Multiplayer has not been tested in-game yet.** Its confirmation and
+sync logic passes nongame checks, but host/client gameplay still needs testing.
+Broader controller, save/resume, and mod-interaction testing is also outstanding.
+This is a separate mod; it doesn't require Foundation, Terms & Contusions,
+Battle Numbers, or Matchmaking.
 
 ## How it works
 
@@ -50,8 +53,10 @@ Unity IL2CPP**. Get it from the [official BepInEx build page](https://builds.bep
 and follow the [IL2CPP installation guide](https://docs.bepinex.dev/master/articles/user_guide/installation/unity_il2cpp.html).
 Game files and the loader aren't included.
 
-With the game closed, merge the preview ZIP's `BepInEx` folder into the game
-folder. Install these two files together:
+[**Download Rerolls 0.1.1**](https://github.com/Krrrrrrk/Chained-Beasts_Rerolls/releases/download/v0.1.1/ChainedBeasts.Rerolls-0.1.1.zip)
+from the [GitHub release](https://github.com/Krrrrrrk/Chained-Beasts_Rerolls/releases/tag/v0.1.1).
+With the game closed, merge the ZIP's `BepInEx` folder into the game folder.
+Install these two files together:
 
 ```text
 BepInEx/plugins/ChainedBeasts.Rerolls/ChainedBeasts.Rerolls.dll

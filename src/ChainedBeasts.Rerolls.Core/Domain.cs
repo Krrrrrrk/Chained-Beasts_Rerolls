@@ -89,6 +89,7 @@ public sealed class PartyLedger
         foreach (var player in players.Where(x => x is >= 0 and < 8)) _started.Add(player);
     }
     public void Damage(int player, int amount) { if (amount > 0 && _started.Contains(player)) _hurt.Add(player); }
+    public bool WasDamaged(int player) => _hurt.Contains(player);
     public bool CompleteBattle(string round, bool won, IEnumerable<int> survivors)
     {
         if (Run.Length == 0 || round != _round || !_completed.Add(round)) return false;

@@ -22,6 +22,10 @@ internal sealed class Service : IDisposable
     private Item[] _replacement;
     private string _run = "", _fresh = "", _round = "";
     private int _lastFinished;
+    private ulong _battleScene;
+    private int _battleNumber;
+    private bool _battleStarted, _battleSettled;
+    private readonly HashSet<int> _earlyDamage = new();
     private IntPtr _session;
     private ulong _epoch, _nonce = Nonce(), _sequence;
     private long _transaction, _clientTransaction;
@@ -45,7 +49,7 @@ internal sealed class Service : IDisposable
         var saved = fresh ? null : LedgerStore.Load(_run);
         _ledger.Start(_run, fresh ? 1 : saved?.Charges ?? 0, saved?.Revision ?? 0);
         _lastFinished = fresh ? data.CompletedLevels : saved?.LastFinishedLevel ?? data.CompletedLevels;
-        _round = "";
+        ResetBattle();
         if (fresh) { Save(); _fresh = ""; }
         Status(fresh ? "Party starts with one shared reroll." : saved != null ? "Party rerolls restored." : "No reroll ledger for this resumed run; no starting charge granted.");
     }
@@ -245,24 +249,65 @@ internal sealed class Service : IDisposable
     {
         if (!Host || _run.Length == 0 || !NetworkSession.InstanceExists) return;
         var level = NetworkSession.Instance.Level;
-        if (level == null || level.TryCast<GameLevelTutorial>() != null || !level.playersSpawned || level.ActiveGameState != GameLevel.eGameState.RUNNING) return;
+        if (level == null || level.TryCast<GameLevelTutorial>() != null) return;
         var data = NetworkSession.Instance.runDataManager;
-        var round = _run + ":" + data.CompletedLevels + ":" + level.sceneName;
-        if (_round == round) return;
-        _round = round; _ledger.BeginBattle(round, LivePlayers().Select(p => p.playerData.playerID));
+        if (_battleNumber == 0 || _battleScene != level.NetworkObjectId ||
+            _battleSettled && level.ActiveGameState == GameLevel.eGameState.RUNNING && data.CompletedLevels >= _battleNumber)
+        {
+            ResetBattle(); _battleScene = level.NetworkObjectId; _battleNumber = data.CompletedLevels + 1;
+        }
+        if (_battleSettled) return;
+        var state = level.ActiveGameState;
+        if (state == GameLevel.eGameState.RUNNING)
+        {
+            if (!level.playersSpawned && level.activeSceneState != GameLevel.eSceneState.RUNNING) return;
+            if (!_battleStarted)
+            {
+                var expected = ReadSeats().Select(s => s.Player).ToHashSet();
+                var present = LivePlayers().Select(p => p.playerData.playerID).ToHashSet();
+                // Registration can lag playersSpawned. Never latch an empty/partial starting roster.
+                if (expected.Count == 0 || !expected.SetEquals(present)) return;
+                _round = _run + ":" + (_battleNumber - 1) + ":" + level.sceneName;
+                _ledger.BeginBattle(_round, present);
+                foreach (var player in _earlyDamage) _ledger.Damage(player, 1);
+                _battleStarted = true;
+                Plugin.Logger.LogInfo("[Rerolls] Tracking battle " + _battleNumber + "; players=" + string.Join(",", present.OrderBy(p => p)));
+            }
+            return;
+        }
+        if (state is GameLevel.eGameState.LEVEL_COMPLETE or GameLevel.eGameState.DEMO_COMPLETE or GameLevel.eGameState.LEVEL_FAILED)
+            SettleBattle(state != GameLevel.eGameState.LEVEL_FAILED, state.ToString());
     }
     internal void Damage(Player player, int amount)
-    { if (Host && amount > 0) { ObserveBattle(); if (NetworkSession.Instance.Level?.ActiveGameState == GameLevel.eGameState.RUNNING && player?.playerData != null) _ledger.Damage(player.playerData.playerID, amount); } }
-    internal void Completed(GameLevel level)
     {
-        if (!Host || level.hasCompletedLevelForPeer || level.ActiveGameState != GameLevel.eGameState.LEVEL_COMPLETE || level.TryCast<GameLevelTutorial>() != null) return;
-        var next = NetworkSession.Instance.runDataManager.CompletedLevels + 1;
-        if (next <= _lastFinished) return;
-        foreach (var player in LivePlayers()) if (player.playerData.lastFightDamageTaken > 0) _ledger.Damage(player.playerData.playerID, player.playerData.lastFightDamageTaken);
-        var rewarded = _ledger.CompleteBattle(_round, true, LivePlayers().Where(p => !p.IsDead && p.health.Value > 0).Select(p => p.playerData.playerID));
-        _lastFinished = next; Save();
+        if (!Host || amount <= 0 || player?.playerData == null) return;
+        ObserveBattle();
+        if (NetworkSession.Instance.Level?.ActiveGameState != GameLevel.eGameState.RUNNING || _battleSettled) return;
+        _earlyDamage.Add(player.playerData.playerID);
+        if (_battleStarted) _ledger.Damage(player.playerData.playerID, amount);
+    }
+    private void SettleBattle(bool won, string outcome)
+    {
+        _battleSettled = true;
+        if (!_battleStarted || _battleNumber <= _lastFinished)
+        {
+            Plugin.Logger.LogInfo("[Rerolls] Battle " + _battleNumber + "; outcome=" + outcome + "; bonus=0; reason=" +
+                (!_battleStarted ? "complete starting roster was not observed" : "already settled in host ledger"));
+            return;
+        }
+        var players = LivePlayers();
+        foreach (var player in players) if (player.playerData.lastFightDamageTaken > 0) _ledger.Damage(player.playerData.playerID, player.playerData.lastFightDamageTaken);
+        var seats = ReadSeats().Select(s => s.Player).ToHashSet();
+        var survivors = players.Where(p => !p.IsDead && p.health.Value > 0 && seats.Contains(p.playerData.playerID)).Select(p => p.playerData.playerID).Distinct().ToArray();
+        var detail = string.Join(",", players.Select(p => "P" + (p.playerData.playerID + 1) + ":hp=" + p.health.Value +
+            ":alive=" + (!p.IsDead && p.health.Value > 0) + ":hurt=" + _ledger.WasDamaged(p.playerData.playerID) + ":nativeDamage=" + p.playerData.lastFightDamageTaken));
+        var rewarded = _ledger.CompleteBattle(_round, won, survivors);
+        _lastFinished = _battleNumber; Save();
+        Plugin.Logger.LogInfo("[Rerolls] Battle " + _battleNumber + "; outcome=" + outcome + "; bonus=" + (rewarded ? 1 : 0) + "; charges=" + _ledger.Charges + "; " + detail);
         if (rewarded) { Status("Damage-free survivor: +1 party reroll."); Plugin.Logger.LogInfo("Damage-free survivor awarded one party reroll; charges=" + _ledger.Charges); }
     }
+    private void ResetBattle()
+    { _round = ""; _battleScene = 0; _battleNumber = 0; _battleStarted = _battleSettled = false; _earlyDamage.Clear(); }
     private static Player[] LivePlayers()
     {
         if (!PlayerManager.InstanceExists || PlayerManager.Instance.players == null) return Array.Empty<Player>();
@@ -284,7 +329,7 @@ internal sealed class Service : IDisposable
     {
         if (_transport == null) return;
         AbortLocal("Waiting for a run."); _transport.Dispose(); _transport = null; _session = IntPtr.Zero;
-        _peers.Clear(); _commands.Clear(); _room = null; _epoch = 0; _run = ""; _round = ""; _clientTransaction = 0; _hostSeen = _helloAt = _advertAt = 0;
+        _peers.Clear(); _commands.Clear(); _room = null; _epoch = 0; _run = ""; ResetBattle(); _clientTransaction = 0; _hostSeen = _helloAt = _advertAt = 0;
         State = new() { Status = "Waiting for a run." };
     }
     private void Fail(Exception e)

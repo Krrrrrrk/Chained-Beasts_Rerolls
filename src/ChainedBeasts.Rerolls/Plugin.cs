@@ -11,7 +11,7 @@ namespace ChainedBeasts.Rerolls;
 [BepInPlugin(Guid, Name, Version)]
 public sealed class Plugin : BasePlugin
 {
-    public const string Guid = "local.chainedbeasts.rerolls", Name = "Chained Beasts Rerolls", Version = "0.1.0";
+    public const string Guid = "local.chainedbeasts.rerolls", Name = "Chained Beasts Rerolls", Version = "0.1.1";
     internal const string NativeHash = "ba3ef02fa87da4c41bb27d7610539c9578132204f0fb5713833e2ef93415ce29";
     internal static ManualLogSource Logger;
     internal static Service Current;
@@ -30,7 +30,7 @@ public sealed class Plugin : BasePlugin
             Patch(typeof(RunDataManager), "StartNewRunRpc", null, nameof(NewRun), typeof(int), typeof(int), typeof(AscensionLevel), typeof(DifficultyConfig), typeof(int));
             Patch(typeof(Player), nameof(Player.OnDamageAccounted), null, nameof(Damage), typeof(int));
             Patch(typeof(Player), nameof(Player.OnHealthChanged), null, nameof(HealthChanged), typeof(int), typeof(int));
-            Patch(typeof(GameLevel), nameof(GameLevel.OnLevelCompleteForPeer), nameof(Completed), null);
+            Patch(typeof(RunDataManager), nameof(RunDataManager.EvaluateBattleEndEquipment), nameof(BattleEnding), null);
             foreach (var type in new[] { typeof(UIGameLobbyTrainerRpc), typeof(UIGameLobbyDoctorRpc), typeof(UIGameLobbyShopRpc) })
             {
                 Patch(type, "HandleSubmit", nameof(LocalConfirm), null, typeof(ClientIdentifier));
@@ -62,7 +62,7 @@ public sealed class Plugin : BasePlugin
     private static void NewRun(RunDataManager __instance, int seed, int runStartTime) => Observe(() => Current?.Fresh(__instance, seed, runStartTime));
     private static void Damage(Player __instance, int damageTaken) => Observe(() => Current?.Damage(__instance, damageTaken));
     private static void HealthChanged(Player __instance, int oldHealth, int newHealth) => Observe(() => Current?.Damage(__instance, Math.Max(0, oldHealth - newHealth)));
-    private static void Completed(GameLevel __instance) => Observe(() => Current?.Completed(__instance));
+    private static void BattleEnding() => Observe(() => Current?.ObserveBattle());
     private static bool BlockInput(UIRpc __instance) => Current?.Busy != true || Current.Visible?.Pointer != __instance.Pointer;
     private static bool LocalConfirm(UIRpc __instance, ClientIdentifier clientID)
     {

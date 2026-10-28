@@ -70,7 +70,7 @@ public sealed class NetworkSession
     public IntPtr Pointer;public object Lobby=new();public GameLevel Level=new();public GameLevel sceneRoot=>Level;
     public Clients Clients=new();public RunDataManager runDataManager=new();
 }
-public class GameLevel:Castable {public enum eGameState{RUNNING,LEVEL_COMPLETE,LEVEL_FAILED};public bool playersSpawned=true,hasCompletedLevelForPeer;public eGameState ActiveGameState=eGameState.RUNNING;public string sceneName="arena";public ulong NetworkObjectId=100;}
+public class GameLevel:Castable {public enum eGameState{RUNNING,LEVEL_COMPLETE,LEVEL_FAILED,DEMO_COMPLETE};public enum eSceneState{NETWORK_SPAWN,SPAWN_LAYOUT,SPAWN_PLAYERS,SPAWN_CHAINS,RUNNING};public eSceneState activeSceneState=eSceneState.RUNNING;public bool playersSpawned=true,hasCompletedLevelForPeer;public eGameState ActiveGameState=eGameState.RUNNING;public string sceneName="arena";public ulong NetworkObjectId=100;}
 public sealed class GameLevelTutorial:GameLevel{}
 public sealed class RunDataManager {public int RunSeed=71,RunStartTime=12345,CompletedLevels;public bool checkpointRestored;public NativeList<PlayerData> playerDatas=new();}
 public sealed class ClientIdentifier{public ulong NetworkID,PlayerIndex;}
@@ -125,7 +125,7 @@ namespace BepInEx {public static class Paths{public static string ConfigPath=>Pa
 namespace ChainedBeasts.Rerolls
 {
     public sealed class InertLog{public List<string> Messages=new();public void LogInfo(string text){Messages.Add(text);}public void LogWarning(string text){Messages.Add(text);}public void LogError(string text){Messages.Add(text);}}
-    internal static class Plugin{internal const string Version="0.1.0";internal static string Stamp="checked-build";internal static InertLog Logger=new();}
+    internal static class Plugin{internal const string Version="0.1.1";internal static string Stamp="checked-build";internal static InertLog Logger=new();}
     internal sealed class NativeOffers
     {
         internal Room Room;internal IntPtr Pointer=new(500);internal Node Node;
