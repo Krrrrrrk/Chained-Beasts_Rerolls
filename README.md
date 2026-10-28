@@ -10,6 +10,10 @@ Broader controller, save/resume, and mod-interaction testing is also outstanding
 This is a separate mod; it doesn't require Foundation, Terms & Contusions,
 Battle Numbers, or Matchmaking.
 
+![Merchant screen with the reroll button showing one shared party charge](docs/images/reroll-merchant.png)
+
+*One shared charge, ready to reroll every merchant offer.*
+
 ## How it works
 
 - Every fresh run starts with **one shared party reroll**.
