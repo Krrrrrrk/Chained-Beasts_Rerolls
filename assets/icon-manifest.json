@@ -1,0 +1,9 @@
+{
+  "author": "Kenney",
+  "license": "CC0-1.0",
+  "official": "https://kenney.nl/assets/board-game-icons",
+  "source": "https://raw.githubusercontent.com/shorepine/kenney/3694c6879e487c108f55677be7dd2ca75b07cc3b/icons/Board%20Game%20Icons/Default%20(64px)/arrow_rotate.png",
+  "sourceSha256": "19297a543ea87ef7917afd14d7461341827237e0af60c92d4bfa0c33a142e30e",
+  "embeddedSha256": "5157d0c024f56e712530ce23e6ac9c95c25818496d03c2a2bcafa2891948e2a3",
+  "adaptation": "Centered circular arrows in padded 64x64 alpha mask; tinted gold at runtime."
+}

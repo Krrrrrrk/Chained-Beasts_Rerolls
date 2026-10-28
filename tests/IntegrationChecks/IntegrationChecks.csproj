@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+<PropertyGroup><TargetFramework>net6.0</TargetFramework><OutputType>Exe</OutputType><ImplicitUsings>enable</ImplicitUsings><Nullable>disable</Nullable><RollForward>LatestMajor</RollForward><CheckEolTargetFramework>false</CheckEolTargetFramework></PropertyGroup>
+<ItemGroup>
+<ProjectReference Include="../../src/ChainedBeasts.Rerolls.Core/ChainedBeasts.Rerolls.Core.csproj" />
+<Compile Include="../../src/ChainedBeasts.Rerolls/Service.cs" Link="Production/Service.cs" />
+<Compile Include="../../src/ChainedBeasts.Rerolls/Transport.cs" Link="Production/Transport.cs" />
+<Compile Include="../../src/ChainedBeasts.Rerolls/LedgerStore.cs" Link="Production/LedgerStore.cs" />
+</ItemGroup></Project>
