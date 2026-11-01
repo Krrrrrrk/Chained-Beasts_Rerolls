@@ -30,7 +30,7 @@ public sealed class Potion{public InjuryType injury;public int _healAmount,potio
 public sealed class PlayerData{}
 public sealed class GameLobby{}
 public sealed class Scene{public ulong NetworkObjectId=100;}
-public sealed class NetworkSession{public static NetworkSession Instance;public static bool InstanceExists=>Instance!=null;public bool TransitionPending,isRestoringFromCheckpoint,IsPaused;public Scene sceneRoot=new();public GameLobby Lobby=new();public RunDataManager runDataManager=new();}
+public sealed class NetworkSession{public static NetworkSession Instance;public static bool InstanceExists=>Instance!=null;public bool IsServer=true,TransitionPending,isRestoringFromCheckpoint,IsPaused;public Scene sceneRoot=new();public GameLobby Lobby=new();public RunDataManager runDataManager=new();}
 public sealed class RunDataManager
 {
     public int RunSeed=7,RunStartTime=123,CompletedLevels;

@@ -13,6 +13,7 @@ internal sealed class Service : IDisposable
         internal Peer(ulong nonce, ulong last, double until, string room) { Nonce=nonce;Last=last;Until=until;Room=room; }
     }
     private readonly Dictionary<ulong, Peer> _peers = new();
+    private readonly HashSet<ulong> _mismatchLogged = new();
     private readonly Consensus _consensus = new();
     private readonly Queue<(int Player, bool Cancel, string Room, int Revision)> _commands = new();
     private readonly PartyLedger _ledger = new();
@@ -32,6 +33,7 @@ internal sealed class Service : IDisposable
     private double _helloAt, _advertAt, _clientDeadline, _hostSeen;
     private Step _clientStep;
     private bool _failed;
+    private string _readiness;
     internal Packet State = new() { Status = "Waiting for a run." };
     internal NativeOffers Visible => _room;
     internal bool Busy => !_failed && (_consensus.Step != Step.Idle || _clientStep != Step.Idle);
@@ -45,13 +47,14 @@ internal sealed class Service : IDisposable
     { if (data.RunSeed == seed && data.RunStartTime == start) { _fresh = Key(data); if (Host && _run == _fresh) Initialize(data, true); } }
     private void Initialize(RunDataManager data, bool fresh)
     {
-        Abort("Run changed."); _run = Key(data); _epoch = Nonce(); _peers.Clear();
+        Abort("Run changed."); _run = Key(data); _epoch = Nonce(); _peers.Clear(); _mismatchLogged.Clear();
         var saved = fresh ? null : LedgerStore.Load(_run);
         _ledger.Start(_run, fresh ? 1 : saved?.Charges ?? 0, saved?.Revision ?? 0);
         _lastFinished = fresh ? data.CompletedLevels : saved?.LastFinishedLevel ?? data.CompletedLevels;
         ResetBattle();
         if (fresh) { Save(); _fresh = ""; }
         Status(fresh ? "Party starts with one shared reroll." : saved != null ? "Party rerolls restored." : "No reroll ledger for this resumed run; no starting charge granted.");
+        Plugin.Logger.LogInfo("[Rerolls] Host run initialized; fresh=" + fresh + "; charges=" + _ledger.Charges);
     }
     private void Save(int? charges = null, int? revision = null) => LedgerStore.Save(new(1, _run, charges ?? _ledger.Charges, revision ?? _ledger.Revision, _lastFinished));
     internal void Tick()
@@ -70,6 +73,7 @@ internal sealed class Service : IDisposable
         if (_transport?.Manager.Pointer != manager.Pointer || _session != session.Pointer)
         {
             ResetConnection(); _transport = new(manager); _session = session.Pointer; _nonce = Nonce(); _sequence = 0;
+            Plugin.Logger.LogInfo("[Rerolls] Transport ready (" + (Host ? "host" : "client") + "); checking matching party installs.");
         }
         var now = Time.realtimeSinceStartupAsDouble;
         if (now >= _advertAt) { _advertAt = now + 2; _transport.HostAdvertised(); }
@@ -113,6 +117,13 @@ internal sealed class Service : IDisposable
             }
             if (now - _hostSeen > 8) State = State with { Ok = false, Status = "Waiting for a matching rerolls host." };
         }
+        var readiness = (Host ? "host" : "client") + "; screen=" + (_room?.Room.Kind ?? OfferKind.None) +
+            "; ready=" + State.Ok + "; seats=" + ReadSeats().Length;
+        if (readiness != _readiness)
+        {
+            _readiness = readiness;
+            Plugin.Logger.LogInfo("[Rerolls] " + readiness + "; charges=" + State.Charges);
+        }
     }
     private Seat[] ReadSeats()
     {
@@ -140,10 +151,17 @@ internal sealed class Service : IDisposable
             if (!ReadSeats().Any(s => s.Client == sender) || sender == Local) return;
             if (packet.Op == Op.Hello)
             {
-                if (packet.Nonce == 0 || packet.Sequence == 0 || packet.Build != Plugin.Stamp) return;
+                if (packet.Nonce == 0 || packet.Sequence == 0) return;
+                if (packet.Build != Plugin.Stamp)
+                {
+                    if (_mismatchLogged.Add(sender)) Plugin.Logger.LogWarning("[Rerolls] Peer " + sender + " has different rerolls DLLs; install the same plugin and Core DLL on every machine.");
+                    return;
+                }
+                _mismatchLogged.Remove(sender);
                 if (_peers.TryGetValue(sender, out var prior) && prior.Nonce == packet.Nonce && packet.Sequence <= prior.Last) return;
                 if (Busy && prior != null && prior.Nonce != packet.Nonce) Abort("A player reconnected; reroll cancelled.");
                 _peers[sender] = new(packet.Nonce, packet.Sequence, now + 8, packet.Room);
+                if (prior == null) Plugin.Logger.LogInfo("[Rerolls] Matching client confirmed: " + sender);
                 _transport.Send(sender, Snapshot() with { Nonce = packet.Nonce }); return;
             }
             if (!_peers.TryGetValue(sender, out var peer) || packet.Nonce != peer.Nonce || packet.Sequence <= peer.Last || packet.Epoch != _epoch || peer.Until <= now) return;
@@ -154,6 +172,7 @@ internal sealed class Service : IDisposable
         if (packet.Op == Op.State)
         {
             if (packet.Nonce != _nonce || packet.Epoch == 0) return;
+            if (_hostSeen == 0) Plugin.Logger.LogInfo("[Rerolls] Matching host confirmed; party balance received.");
             if (_epoch != 0 && _epoch != packet.Epoch) Abort("Host run changed.");
             if (_clientStep == Step.Applying && packet.Committed == _clientTransaction) FinishLocal();
             _epoch = packet.Epoch; _hostSeen = now; State = packet;
@@ -329,7 +348,7 @@ internal sealed class Service : IDisposable
     {
         if (_transport == null) return;
         AbortLocal("Waiting for a run."); _transport.Dispose(); _transport = null; _session = IntPtr.Zero;
-        _peers.Clear(); _commands.Clear(); _room = null; _epoch = 0; _run = ""; ResetBattle(); _clientTransaction = 0; _hostSeen = _helloAt = _advertAt = 0;
+        _peers.Clear(); _mismatchLogged.Clear(); _commands.Clear(); _room = null; _epoch = 0; _run = ""; ResetBattle(); _clientTransaction = 0; _hostSeen = _helloAt = _advertAt = 0; _readiness = null;
         State = new() { Status = "Waiting for a run." };
     }
     private void Fail(Exception e)

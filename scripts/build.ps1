@@ -5,7 +5,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$version = '0.1.1'
+$version = '0.1.3'
 $nativeHash = 'ba3ef02fa87da4c41bb27d7610539c9578132204f0fb5713833e2ef93415ce29'
 $names = @('ChainedBeasts.Rerolls.dll','ChainedBeasts.Rerolls.Core.dll')
 $output = Join-Path $repoRoot 'src\ChainedBeasts.Rerolls\bin\Release\net6.0'

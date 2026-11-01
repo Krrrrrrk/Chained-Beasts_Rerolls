@@ -20,7 +20,10 @@ internal sealed class NativeOffers
 
     internal static NativeOffers Read()
     {
-        if (!NetworkSession.InstanceExists || NetworkSession.Instance.sceneRoot == null || NetworkSession.Instance.TransitionPending ||
+        // TransitionPending is host bookkeeping: online clients retain the scene name
+        // after sending their ready RPC. Require the actual focused cards on clients.
+        if (!NetworkSession.InstanceExists || NetworkSession.Instance.sceneRoot == null ||
+            NetworkSession.Instance.IsServer && NetworkSession.Instance.TransitionPending ||
             NetworkSession.Instance.isRestoringFromCheckpoint || NetworkSession.Instance.IsPaused || NetworkSession.Instance.Lobby == null) return null;
         var data = NetworkSession.Instance.runDataManager;
         if (data == null || data.playerDatas == null || data.playerDatas.Count == 0) return null;

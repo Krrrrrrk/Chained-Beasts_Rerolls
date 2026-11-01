@@ -1,4 +1,4 @@
-# Implementation notes: 0.1.1 preview
+# Implementation notes: 0.1.3
 
 Targets the inspected Chained Beasts 1.0.2 / Steam build 26231777, Unity
 6000.3.21f1, BepInEx 6.0.0-be.791+b782da4 and .NET 6. Startup refuses a different
@@ -127,6 +127,51 @@ all peers still need matching updated binaries for its normal build handshake.
 ## Reported gameplay status
 
 0.1.1 passed an initial manual single-player test, including the corrected
-damage-free bonus. Multiplayer has not been tested in-game. The inert
-host/client checks establish coordination behavior under the simulated cases;
-they do not establish actual NGO/Steam delivery or multiplayer gameplay success.
+damage-free bonus. A later multiplayer test found that the joining player
+could not see reroll controls. 0.1.2 addresses the client screen-detection
+failure below; its actual host/client behavior still awaits another manual test.
+Inert checks establish coordination only under their simulated cases, not
+actual NGO/Steam delivery or multiplayer gameplay success.
+
+## 0.1.2: remote client screen detection
+
+The supplied client BepInEx log confirms Rerolls 0.1.1 loaded, without a rerolls
+exception. It does not contain a rerolls handshake or screen-readiness trace.
+The supplied Player.log excerpt is truncated and covers startup/initial lobby
+creation, so it cannot establish the later runtime flag values.
+
+Native 1.0.2 code inspection establishes a concrete adapter defect:
+`NetworkSession.TransitionToSceneCallback(string)` stores the pending scene
+name on peers. Online peers send `TransitionToSceneReadyRpc(ClientIdentifier)`;
+the server's ready handler eventually calls `TransitionToSceneReady()`, loads
+the next scene and clears the pending name. A remote client does not execute
+that host loading/clear path. Consequently `TransitionPending` is not a valid
+remote-client readiness gate, even when the new cards are visible and focused.
+The old common gate in `NativeOffers.Read()` rejected those client screens.
+
+The adapter now checks `TransitionPending` only on the server. Both roles still
+require the actual lobby scene, focused/active native cards, initialized lists
+and UI state, no pause/checkpoint restore/tutorial dialogue, and no already
+confirmed/purchased/resolving selections. It does not clear or modify the game's
+transition field. This applies to skills, potions and all merchant offers.
+
+Bounded logs now identify host/client transport setup, host run initialization,
+matching handshake receipts, mismatched rerolls DLLs, and changes in screen,
+party size and readiness. They do not log every frame or every heartbeat.
+Host authority, unanimous character voting, exact binary matching, native offer
+generation, charge persistence and rollback rules are unchanged.
+
+Manual retest: put both 0.1.2 DLLs on every machine, assemble the party before
+starting a fresh run, and visit each supported screen. Both machines must see
+the badge and the same balance. One vote must wait; the second must replace
+the same offers and deduct exactly one charge everywhere. Check cancellation,
+damage-free rewards and a solo reroll as well. Surgeries remain unsupported.
+
+## 0.1.3: full reroll panel click target
+
+The idle badge now uses one transparent button over the entire colored panel,
+including its icon, accent border and padding. The text stays in its original
+position. The caption above and shadow outside the panel are excluded. The
+existing charge/readiness gate and queued vote path are unchanged. Inert input
+checks cover edges, the icon, outside clicks, disabled states and duplicate draw
+calls at four resolutions. Actual Unity mouse interaction awaits manual testing.

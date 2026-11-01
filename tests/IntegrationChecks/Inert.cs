@@ -125,7 +125,7 @@ namespace BepInEx {public static class Paths{public static string ConfigPath=>Pa
 namespace ChainedBeasts.Rerolls
 {
     public sealed class InertLog{public List<string> Messages=new();public void LogInfo(string text){Messages.Add(text);}public void LogWarning(string text){Messages.Add(text);}public void LogError(string text){Messages.Add(text);}}
-    internal static class Plugin{internal const string Version="0.1.1";internal static string Stamp="checked-build";internal static InertLog Logger=new();}
+    internal static class Plugin{internal const string Version="0.1.3";internal static string Stamp="checked-build";internal static InertLog Logger=new();}
     internal sealed class NativeOffers
     {
         internal Room Room;internal IntPtr Pointer=new(500);internal Node Node;

@@ -33,5 +33,35 @@ foreach(var kind in new[]{OfferKind.Potions,OfferKind.Equipment}) {
     using(var stage=room.Stage(generated)){stage.Apply();NetworkSession.Instance.sceneRoot.NetworkObjectId=999;data.potions=new();data.currentShopOptions=new();}
     Check(data.potions.Count==0&&data.currentShopOptions.Count==0,"A stale stage cannot overwrite a new scene's lists.");
 }
+foreach(var kind in new[]{OfferKind.Skills,OfferKind.Potions,OfferKind.Equipment}) {
+    Reset();data=NetworkSession.Instance.runDataManager;
+    View view;
+    if(kind==OfferKind.Skills) {
+        data.trainingSkills.Add(new(){SkillType.A,SkillType.B,SkillType.C});
+        trainer=new();Resources.Objects[typeof(UIGameLobbyTrainerRpc)]=new[]{trainer};view=trainer.uiLobbyTrainer;
+    } else if(kind==OfferKind.Potions) {
+        data.potions.Add(new(){injury=InjuryType.A,_healAmount=20});
+        var doctor=new UIGameLobbyDoctorRpc();doctor.uiLobbyDoctor.selectionPages.Add(new());
+        Resources.Objects[typeof(UIGameLobbyDoctorRpc)]=new[]{doctor};view=doctor.uiLobbyDoctor;
+    } else {
+        data.currentShopOptions.Add(PurchaseType.Weapon);
+        var shop=new UIGameLobbyShopRpc();shop.ui.selectionPages.Add(new());
+        Resources.Objects[typeof(UIGameLobbyShopRpc)]=new[]{shop};view=shop.ui;
+    }
+    var session=NetworkSession.Instance;session.TransitionPending=true;
+    Check(NativeOffers.Read()==null,"A host still blocks "+kind+" rerolls while its transition is pending.");
+    session.IsServer=false;room=NativeOffers.Read();
+    Check(room?.Room.Kind==kind,"A client with native lingering transition bookkeeping exposes its actual "+kind+" cards.");
+    session.TransitionPending=false;
+    Check(NativeOffers.Read()?.Room.Key==room.Room.Key,"Lingering host-only bookkeeping cannot change the client's "+kind+" offer identity.");
+    view.gameObject.SetActive(false);Check(NativeOffers.Read()==null,"Inactive "+kind+" cards remain excluded on clients.");view.gameObject.SetActive(true);
+    session.IsPaused=true;Check(NativeOffers.Read()==null,"Paused "+kind+" cards remain excluded on clients.");session.IsPaused=false;
+    session.isRestoringFromCheckpoint=true;Check(NativeOffers.Read()==null,"Restoring "+kind+" cards remain excluded on clients.");session.isRestoringFromCheckpoint=false;
+    session.sceneRoot=null;Check(NativeOffers.Read()==null,"A missing client scene cannot expose "+kind+" rerolls.");session.sceneRoot=new();
+    if(kind==OfferKind.Skills) trainer.uiState.done=new(true);
+    else if(kind==OfferKind.Potions) ((UIGameLobbyDoctorRpc[])Resources.Objects[typeof(UIGameLobbyDoctorRpc)])[0].uiState.selected=new(true);
+    else ((UIGameLobbyShopRpc[])Resources.Objects[typeof(UIGameLobbyShopRpc)])[0].uiState.purchased=new(true);
+    Check(NativeOffers.Read()==null,"Resolved "+kind+" selections stay blocked on clients.");
+}
 Check(!AppDomain.CurrentDomain.GetAssemblies().Any(a=>a.GetName().Name=="Assembly-CSharp"),"Native adapter checks did not load the game.");
 Console.WriteLine($"PASS: {checks} production native-offer adapter checks with inert cards/generators.");

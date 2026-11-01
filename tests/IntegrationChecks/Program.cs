@@ -12,6 +12,10 @@ try
     }
     using(var f=new Party(2)) {
         Check(f.Nodes.All(n=>n.Service.State.Ok),"Matching peers handshake on the current screen.");
+        Check(Plugin.Logger.Messages.Any(m=>m.Contains("Transport ready (client)")) &&
+            Plugin.Logger.Messages.Any(m=>m.Contains("Matching host confirmed")),"Client transport and matching host receipts are logged.");
+        var stableLogCount=Plugin.Logger.Messages.Count;f.Pump(100);
+        Check(Plugin.Logger.Messages.Count==stableLogCount,"Stable readiness and heartbeat polls do not flood the log.");
         f.Host.Vote(0);f.Pump();
         Check(f.Host.Service.Busy && f.Host.Applied==0 && f.Host.Service.State.Charges==1,"One multiplayer vote waits without spending.");
         f.Nodes[1].Vote(1);f.Pump();
@@ -71,6 +75,9 @@ try
     }
     using(var f=new Party(2)) {
         f.Nodes[1].Build="different-build";f.Host.Activate();f.Host.Service.Dispose();f.Host.Service=new();f.Host.Service.Fresh(f.Host.Session.runDataManager,71,12345);f.Pump(100);
+        Check(Plugin.Logger.Messages.Any(m=>m.Contains("different rerolls DLLs")),"Binary mismatch has an explicit actionable diagnostic.");
+        var warnings=Plugin.Logger.Messages.Count(m=>m.Contains("different rerolls DLLs"));f.Pump(100);
+        Check(Plugin.Logger.Messages.Count(m=>m.Contains("different rerolls DLLs"))==warnings,"Repeated mismatched hellos emit only one warning per peer.");
         f.Host.Vote(0);f.Nodes[1].Vote(1);f.Pump();Check(f.Host.Applied==0 && f.Host.Service.State.Charges==1,"Mismatched build cannot enter a reroll transaction.");
     }
     using(var f=new Party(1)) {

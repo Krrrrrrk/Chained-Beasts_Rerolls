@@ -11,7 +11,7 @@ namespace ChainedBeasts.Rerolls;
 [BepInPlugin(Guid, Name, Version)]
 public sealed class Plugin : BasePlugin
 {
-    public const string Guid = "local.chainedbeasts.rerolls", Name = "Chained Beasts Rerolls", Version = "0.1.1";
+    public const string Guid = "local.chainedbeasts.rerolls", Name = "Chained Beasts Rerolls", Version = "0.1.3";
     internal const string NativeHash = "ba3ef02fa87da4c41bb27d7610539c9578132204f0fb5713833e2ef93415ce29";
     internal static ManualLogSource Logger;
     internal static Service Current;

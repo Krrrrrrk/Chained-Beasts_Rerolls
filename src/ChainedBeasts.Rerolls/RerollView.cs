@@ -30,7 +30,8 @@ internal sealed class RerollView : IDisposable
                 DrawIcon(new(box.x+12*scale,box.y+14*scale,44*scale,44*scale));
                 var ok = state.Ok && state.Charges > 0;
                 GUI.enabled = ok;
-                if (GUI.Button(new(box.x+60*scale,box.y+6*scale,194*scale,60*scale),new GUIContent { text = "REROLL  /  " + state.Charges },_label)) service.QueueVote(local[0].Player);
+                if (GUI.Button(box,new GUIContent { text = string.Empty },_label)) service.QueueVote(local[0].Player);
+                GUI.Label(new(box.x+60*scale,box.y+6*scale,194*scale,60*scale),"REROLL  /  " + state.Charges,_label);
                 GUI.enabled = true;
                 GUI.Label(new(box.x,box.y-26*scale,box.width,24*scale),state.Ok ? Label(service.Visible.Room.Kind) : "Waiting for every player's mod",_small);
                 return;
