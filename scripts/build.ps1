@@ -5,8 +5,8 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$version = '0.1.3'
-$nativeHash = 'ba3ef02fa87da4c41bb27d7610539c9578132204f0fb5713833e2ef93415ce29'
+$version = '0.1.4'
+$nativeHash = '0deadea3eb9a6ee3bdb69ab7945d4b6dfe40a07be0727edb5cb4dc20c05c3f6e'
 $names = @('ChainedBeasts.Rerolls.dll','ChainedBeasts.Rerolls.Core.dll')
 $output = Join-Path $repoRoot 'src\ChainedBeasts.Rerolls\bin\Release\net6.0'
 $interop = Join-Path $GameDir 'BepInEx\interop\Assembly-CSharp.dll'
@@ -62,7 +62,7 @@ if ($Package) {
     foreach ($file in $names) {Copy-Item -LiteralPath (Join-Path $output $file) -Destination $plugins}
     foreach ($file in @('README.md','LICENSE','THIRD_PARTY_NOTICES.md')) {Copy-Item -LiteralPath (Join-Path $repoRoot $file) -Destination $stage}
     $files | ForEach-Object {"$($_.sha256)  BepInEx/plugins/ChainedBeasts.Rerolls/$($_.file)"} | Set-Content -LiteralPath (Join-Path $stage 'SHA256SUMS.txt') -Encoding utf8
-    [ordered]@{version=$version;game='1.0.2';steamBuild='26231777';nativeSha256=$nativeHash;runtimeVerified=$false;singlePlayerManualTested=($version -eq '0.1.1');multiplayerRuntimeTested=$false;files=$files} |
+    [ordered]@{version=$version;game='1.0.2';steamBuild='26369255';nativeSha256=$nativeHash;runtimeVerified=$false;singlePlayerManualTested=($version -eq '0.1.1');multiplayerRuntimeTested=$false;files=$files} |
         ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $stage 'BUILD_INFO.json') -Encoding utf8
     $temporary=Join-Path $artifact ([Guid]::NewGuid().ToString('N')+'.zip');[IO.Compression.ZipFile]::CreateFromDirectory($stage,$temporary)
     $zip=Join-Path $artifact "ChainedBeasts.Rerolls-$version.zip";Move-Item -LiteralPath $temporary -Destination $zip -Force

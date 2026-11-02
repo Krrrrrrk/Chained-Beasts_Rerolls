@@ -1,8 +1,10 @@
 # Chained Beasts Rerolls
 
+Updated for the Chained Beasts 1.0.2 hotfix, Steam build **26369255**. In-game and multiplayer retesting is still pending.
+
 I wanted rerolls to be something the party earns and decides on together.
 
-**Version 0.1.3 for Chained Beasts 1.0.2 / Steam build 26231777.**
+**Version 0.1.3 for Chained Beasts 1.0.2 / Steam build 26369255.**
 Single-player, including the damage-free reroll bonus, worked in my initial
 0.1.1 testing. A multiplayer test found that joining players couldn't see the
 reroll button. **0.1.3 includes the client screen-detection fix and a larger clickable reroll panel. It needs another manual multiplayer test.** Its confirmation and sync logic passes nongame checks.
@@ -57,8 +59,8 @@ Unity IL2CPP**. Get it from the [official BepInEx build page](https://builds.bep
 and follow the [IL2CPP installation guide](https://docs.bepinex.dev/master/articles/user_guide/installation/unity_il2cpp.html).
 Game files and the loader aren't included.
 
-[**Download Rerolls 0.1.3**](https://github.com/Krrrrrrk/Chained-Beasts_Rerolls/releases/download/v0.1.3/ChainedBeasts.Rerolls-0.1.3.zip)
-from the [GitHub release](https://github.com/Krrrrrrk/Chained-Beasts_Rerolls/releases/tag/v0.1.3).
+[**Download Rerolls 0.1.4**](https://github.com/Krrrrrrk/Chained-Beasts_Rerolls/releases/download/v0.1.4/ChainedBeasts.Rerolls-0.1.4.zip)
+from the [GitHub release](https://github.com/Krrrrrrk/Chained-Beasts_Rerolls/releases/tag/v0.1.4).
 This includes the joining-player screen fix and lets you click anywhere inside
 the reroll panel. Everyone needs both matching DLLs for multiplayer.
 With the game closed, merge the ZIP's `BepInEx` folder into the game folder.

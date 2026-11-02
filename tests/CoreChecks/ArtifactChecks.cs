@@ -21,7 +21,7 @@ static class ArtifactChecks
         Method("UIGameLobbyShopRpc","HandlePurchaseSelectionRpc",2);Method("UIGameLobbyShopRpc","HandlePlayerReadyRpc",1);Method("UIGameLobbyShopRpc","Execute",0);
         using var stream=File.OpenRead(plugin);using var pe=new PEReader(stream);var md=pe.GetMetadataReader();
         check(md.GetString(md.GetAssemblyDefinition().Name)=="ChainedBeasts.Rerolls","The artifact has its own plugin identity.");
-        check(md.GetAssemblyDefinition().Version.ToString()=="0.1.3.0","The compiled preview version matches its own project and plugin version.");
+        check(md.GetAssemblyDefinition().Version.ToString()=="0.1.4.0","The compiled preview version matches its own project and plugin version.");
         var refs=md.AssemblyReferences.Select(h=>md.GetString(md.GetAssemblyReference(h).Name)).ToArray();
         check(!refs.Any(n=>n.Contains("ModFoundation")||n.Contains("Matchmaking")||n.Contains("BattleNumbers")||n.Contains("TermsAndContusions")),"Standalone plugin has no hard dependency on existing mods.");
         var controller=md.TypeDefinitions.Select(md.GetTypeDefinition).Single(t=>md.GetString(t.Name)=="RerollController");
