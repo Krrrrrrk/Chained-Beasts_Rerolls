@@ -11,8 +11,8 @@ namespace ChainedBeasts.Rerolls;
 [BepInPlugin(Guid, Name, Version)]
 public sealed class Plugin : BasePlugin
 {
-    public const string Guid = "local.chainedbeasts.rerolls", Name = "Chained Beasts Rerolls", Version = "0.1.4";
-    internal const string NativeHash = "0deadea3eb9a6ee3bdb69ab7945d4b6dfe40a07be0727edb5cb4dc20c05c3f6e";
+    public const string Guid = "local.chainedbeasts.rerolls", Name = "Chained Beasts Rerolls", Version = "0.1.5";
+    internal const string NativeHash = "ae48a9c3f8018d3f996c4e692a3736f8b5dcb4ead5c8d0e6e40f3e83f0004a6a";
     internal static ManualLogSource Logger;
     internal static Service Current;
     internal static string Stamp;
@@ -22,7 +22,7 @@ public sealed class Plugin : BasePlugin
         Logger = Log;
         if (!Config.Bind("General", "Enabled", true, "Enable party rerolls on the next launch. Multiplayer requires matching installs on every machine.").Value) return;
         var native = Path.Combine(BepInEx.Paths.GameRootPath, "GameAssembly.dll");
-        if (Hash(native) != NativeHash) { Log.LogError("Rerolls disabled: unsupported game build. This preview targets 1.0.2 / 26369255."); return; }
+        if (Hash(native) != NativeHash) { Log.LogError("Rerolls disabled: unsupported game build. This preview targets 1.0.3 / 26775394."); return; }
         Stamp = Core.Wire.Hash(Hash(Assembly.GetExecutingAssembly().Location) + Hash(typeof(Core.PartyLedger).Assembly.Location) + NativeHash);
         Current = new Service(); _harmony = new Harmony(Guid);
         try
